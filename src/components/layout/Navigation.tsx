@@ -49,30 +49,35 @@ export default function Navigation() {
       </div>
 
       <div className="flex items-center gap-4">
-        <NavLink
-          href="/"
-          icon={<Home className="h-5 w-5" />}
-          label="Home"
-          isActive={isActive('/')}
-        />
-        <NavLink
-          href="/leaderboard"
-          icon={<Trophy className="h-5 w-5" />}
-          label="Leaderboard"
-          isActive={isActive('/leaderboard')}
-        />
-        <NavLink
-          href="/challenges"
-          icon={<Target className="h-5 w-5" />}
-          label="Challenges"
-          isActive={isActive('/challenges')}
-        />
-        {isAdmin(session?.user?.slack_id) && (
+        {session ? (
+          <>
+            <NavLink
+              href="/leaderboard"
+              icon={<Trophy className="h-5 w-5" />}
+              label="Leaderboard"
+              isActive={isActive('/leaderboard')}
+            />
+            <NavLink
+              href="/challenges"
+              icon={<Target className="h-5 w-5" />}
+              label="Challenges"
+              isActive={isActive('/challenges')}
+            />
+            {isAdmin(session?.user?.slack_id) && (
+              <NavLink
+                href="/admin"
+                icon={<Settings className="h-5 w-5" />}
+                label="Admin"
+                isActive={isActive('/admin')}
+              />
+            )}
+          </>
+        ) : (
           <NavLink
-            href="/admin"
-            icon={<Settings className="h-5 w-5" />}
-            label="Admin"
-            isActive={isActive('/admin')}
+            href="/"
+            icon={<Home className="h-5 w-5" />}
+            label="Home"
+            isActive={isActive('/')}
           />
         )}
       </div>

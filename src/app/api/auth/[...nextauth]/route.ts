@@ -3,14 +3,6 @@ import NextAuth from 'next-auth/next';
 import SlackProvider from 'next-auth/providers/slack';
 import { supabase } from '@/lib/supabase/client';
 
-interface SlackProfile {
-  id: string;
-  name: string;
-  email: string;
-  image_original?: string;
-  image_512?: string;
-}
-
 export const authOptions: NextAuthOptions = {
   providers: [
     SlackProvider({
@@ -23,26 +15,11 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+
   callbacks: {
-    async signIn({ account, profile }: { account: any; profile: SlackProfile }) {
+    async signIn({ account, profile }: { account: any; profile: any }) {
       if (account?.provider === 'slack') {
-        let workspaceId: string | undefined;
-
-        try {
-          const response = await fetch('https://slack.com/api/team.info', {
-            headers: {
-              Authorization: `Bearer ${account.access_token}`,
-            },
-          });
-
-          const data = await response.json();
-          workspaceId = data?.team?.id;
-
-          console.log('Fetched workspace ID from API:', workspaceId);
-        } catch (err) {
-          console.error('Failed to fetch workspace ID from Slack:', err);
-          return false;
-        }
+        const workspaceId = profile?.['https://slack.com/team_id'];
 
         console.log('Auth attempt:', {
           workspaceId,
@@ -59,35 +36,38 @@ export const authOptions: NextAuthOptions = {
           return false;
         }
 
+        const slackId = profile.sub;
+        const photoUrl = profile.picture;
+        const name = profile.name;
+
         try {
           const { data: existingUser } = await supabase
             .from('users')
             .select()
-            .eq('slack_id', profile.id)
+            .eq('slack_id', slackId)
             .single();
-
-          const photoUrl = profile.image_original || profile.image_512;
 
           if (!existingUser) {
             await supabase.from('users').insert({
-              slack_id: profile.id,
-              name: profile.name,
+              slack_id: slackId,
+              name,
               photo_url: photoUrl,
             });
           } else {
             await supabase
               .from('users')
               .update({
-                name: profile.name,
+                name,
                 photo_url: photoUrl,
               })
-              .eq('slack_id', profile.id);
+              .eq('slack_id', slackId);
           }
         } catch (error) {
           console.error('Error managing user in database:', error);
           return false;
         }
       }
+
       return true;
     },
 
@@ -112,11 +92,17 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
 
-    async jwt({ token, account, profile }: { token: any; account: any; profile: SlackProfile }) {
-      if (account?.provider === 'slack') {
-        token.slack_id = profile.id;
+    async jwt({ token, account, profile }: { token: any; account: any; profile: any }) {
+      if (account?.provider === 'slack' && profile?.sub) {
+        token.sub = profile.sub; // sets Slack user ID
+        token.slack_id = profile.sub;
       }
       return token;
+    },
+
+    async redirect({ url, baseUrl }) {
+      // Redirect to leaderboard after sign in
+      return `${baseUrl}/leaderboard`;
     },
   },
 
