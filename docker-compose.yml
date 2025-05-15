@@ -16,7 +16,7 @@ services:
       - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
       - SLACK_CHANNEL_ID=${SLACK_CHANNEL_ID}
       - SLACK_WORKSPACE_ID=${SLACK_WORKSPACE_ID}
-      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_URL=https://myapp.local
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
     volumes:
       - .:/app

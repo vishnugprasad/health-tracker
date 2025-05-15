@@ -22,7 +22,7 @@ export function isAdmin(slackId: string | undefined): boolean {
   return !!slackId && adminIds.includes(slackId);
 }
 
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {

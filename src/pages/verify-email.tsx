@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
@@ -8,7 +7,6 @@ import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
 export default function VerifyEmail() {
   const router = useRouter();
   const { token } = router.query;
-  const { session } = useAuth();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
 

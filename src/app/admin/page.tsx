@@ -28,9 +28,11 @@ export default function AdminPage() {
     }
   }, [session]);
 
-  const checkAdminAccess = async () => {
+  const checkAdminAccess = () => {
     const adminIds = process.env.ADMIN_USER_IDS?.split(',') || [];
-    if (!adminIds.includes(session?.user?.slack_id)) {
+    const slackId = (session?.user as { slack_id?: string })?.slack_id || '';
+
+    if (!adminIds.includes(slackId)) {
       window.location.href = '/';
     }
   };
@@ -39,7 +41,6 @@ export default function AdminPage() {
     try {
       setLoading(true);
 
-      // Fetch all users
       const { data: users, error: usersError } = await supabase
         .from('users')
         .select('*')
@@ -47,7 +48,6 @@ export default function AdminPage() {
 
       if (usersError) throw usersError;
 
-      // Fetch recent check-ins with user data
       const { data: checkIns, error: checkInsError } = await supabase
         .from('check_ins')
         .select(`
@@ -74,7 +74,6 @@ export default function AdminPage() {
     if (!selectedUser || !pointsToAdd || !reason) return;
 
     try {
-      // Get current user points
       const { data: user } = await supabase
         .from('users')
         .select('total_points')
@@ -83,7 +82,6 @@ export default function AdminPage() {
 
       if (!user) return;
 
-      // Update user points
       await supabase
         .from('users')
         .update({
@@ -91,7 +89,6 @@ export default function AdminPage() {
         })
         .eq('id', selectedUser);
 
-      // Log points adjustment
       await supabase
         .from('points_log')
         .insert({
@@ -100,12 +97,9 @@ export default function AdminPage() {
           source: `admin_adjustment: ${reason}`,
         });
 
-      // Reset form
       setSelectedUser('');
       setPointsToAdd(0);
       setReason('');
-
-      // Refresh data
       fetchAdminData();
     } catch (error) {
       console.error('Error adding points:', error);
@@ -114,13 +108,11 @@ export default function AdminPage() {
 
   const handleRemoveCheckIn = async (checkInId: string, userId: string, points: number) => {
     try {
-      // Delete check-in
       await supabase
         .from('check_ins')
         .delete()
         .eq('id', checkInId);
 
-      // Update user points
       const { data: user } = await supabase
         .from('users')
         .select('total_points')
@@ -135,7 +127,6 @@ export default function AdminPage() {
           })
           .eq('id', userId);
 
-        // Log points adjustment
         await supabase
           .from('points_log')
           .insert({
@@ -145,7 +136,6 @@ export default function AdminPage() {
           });
       }
 
-      // Refresh data
       fetchAdminData();
     } catch (error) {
       console.error('Error removing check-in:', error);
@@ -249,4 +239,4 @@ export default function AdminPage() {
       </div>
     </div>
   );
-} 
+}

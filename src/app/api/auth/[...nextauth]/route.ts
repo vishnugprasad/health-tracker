@@ -1,9 +1,31 @@
-import { NextAuthOptions } from 'next-auth';
-import NextAuth from 'next-auth/next';
+import NextAuth from 'next-auth';
 import SlackProvider from 'next-auth/providers/slack';
 import { supabase } from '@/lib/supabase/client';
+import type { DefaultSession, NextAuthOptions } from 'next-auth';
+import type { Account, Profile, Session } from 'next-auth';
+import type { JWT } from 'next-auth/jwt';
 
-export const authOptions: NextAuthOptions = {
+// Extend the session user type to include custom fields
+interface CustomSessionUser {
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  id?: string;
+  slack_id?: string;
+  total_points?: number;
+}
+
+// Type for the Slack profile fields
+interface SlackProfile extends Profile {
+  sub: string;
+  name: string;
+  email?: string;
+  picture?: string;
+  "https://slack.com/team_id"?: string;
+}
+
+// Auth configuration object
+const authOptions: NextAuthOptions = {
   providers: [
     SlackProvider({
       clientId: process.env.SLACK_CLIENT_ID!,
@@ -17,16 +39,16 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    async signIn({ account, profile }: { account: any; profile: any }) {
+    async signIn({ account, profile }: { account?: Account | null; profile?: Profile }) {
       if (account?.provider === 'slack') {
-        const workspaceId = profile?.['https://slack.com/team_id'];
+        if (!profile) return false;
 
-        console.log('Auth attempt:', {
-          workspaceId,
-          expectedWorkspaceId: process.env.SLACK_WORKSPACE_ID,
-          user: profile.name,
-          email: profile.email,
-        });
+        const slackProfile = profile as SlackProfile;
+
+        const workspaceId = slackProfile["https://slack.com/team_id"];
+        const slackId = slackProfile.sub;
+        const photoUrl = slackProfile.picture;
+        const name = slackProfile.name;
 
         if (workspaceId !== process.env.SLACK_WORKSPACE_ID) {
           console.error('Workspace ID mismatch:', {
@@ -35,10 +57,6 @@ export const authOptions: NextAuthOptions = {
           });
           return false;
         }
-
-        const slackId = profile.sub;
-        const photoUrl = profile.picture;
-        const name = profile.name;
 
         try {
           const { data: existingUser } = await supabase
@@ -71,7 +89,7 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
 
-    async session({ session, token }: { session: any; token: any }) {
+    async session({ session, token }: { session: Session; token: JWT }) {
       if (token?.sub) {
         try {
           const { data: user } = await supabase
@@ -81,38 +99,39 @@ export const authOptions: NextAuthOptions = {
             .single();
 
           if (user) {
-            session.user.id = user.id;
-            session.user.slack_id = user.slack_id;
-            session.user.total_points = user.total_points;
+            const customUser = session.user as CustomSessionUser;
+            customUser.id = user.id;
+            customUser.slack_id = user.slack_id;
+            customUser.total_points = user.total_points;
           }
         } catch (error) {
-          console.error('Error fetching user session data:', error);
+          console.error('Error enriching session with Supabase user:', error);
         }
       }
+
       return session;
     },
 
-    async jwt({ token, account, profile }: { token: any; account: any; profile: any }) {
+    async jwt({ token, account, profile }: { token: JWT; account?: Account | null; profile?: Profile }) {
       if (account?.provider === 'slack' && profile?.sub) {
-        token.sub = profile.sub; // sets Slack user ID
+        token.sub = profile.sub;
         token.slack_id = profile.sub;
       }
       return token;
     },
 
-    async redirect({ url, baseUrl }) {
-      // Redirect to leaderboard after sign in
+    async redirect({ baseUrl }: { baseUrl: string }) {
       return `${baseUrl}/leaderboard`;
     },
+  },
+
+  session: {
+    strategy: 'jwt',
   },
 
   pages: {
     signIn: '/auth/signin',
     error: '/auth/error',
-  },
-
-  session: {
-    strategy: 'jwt',
   },
 
   debug: process.env.NODE_ENV === 'development',

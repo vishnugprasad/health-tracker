@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import type { User, Badge, CheckIn } from '@/lib/supabase/client';
 
@@ -15,7 +16,8 @@ type ProfileData = {
   };
 };
 
-export default function ProfilePage({ params }: { params: { id: string } }) {
+export default function ProfilePage() {
+  const { id } = useParams();
   const [profileData, setProfileData] = useState<ProfileData>({
     user: null,
     badges: [],
@@ -29,41 +31,37 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchProfileData();
-  }, [params.id]);
+    if (id) fetchProfileData(id as string);
+  }, [id]);
 
-  const fetchProfileData = async () => {
+  const fetchProfileData = async (userId: string) => {
     try {
       setLoading(true);
 
-      // Fetch user data
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
-        .eq('id', params.id)
+        .eq('id', userId)
         .single();
 
       if (userError) throw userError;
 
-      // Fetch badges
       const { data: badgesData, error: badgesError } = await supabase
         .from('badges')
         .select('*')
-        .eq('user_id', params.id);
+        .eq('user_id', userId);
 
       if (badgesError) throw badgesError;
 
-      // Fetch recent check-ins
       const { data: checkInsData, error: checkInsError } = await supabase
         .from('check_ins')
         .select('*')
-        .eq('user_id', params.id)
+        .eq('user_id', userId)
         .order('timestamp', { ascending: false })
         .limit(5);
 
       if (checkInsError) throw checkInsError;
 
-      // Calculate stats
       const now = new Date();
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -71,19 +69,19 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
       const { count: weeklyCount } = await supabase
         .from('check_ins')
         .select('*', { count: 'exact' })
-        .eq('user_id', params.id)
+        .eq('user_id', userId)
         .gte('timestamp', weekAgo.toISOString());
 
       const { count: monthlyCount } = await supabase
         .from('check_ins')
         .select('*', { count: 'exact' })
-        .eq('user_id', params.id)
+        .eq('user_id', userId)
         .gte('timestamp', monthAgo.toISOString());
 
       const { count: totalCount } = await supabase
         .from('check_ins')
         .select('*', { count: 'exact' })
-        .eq('user_id', params.id);
+        .eq('user_id', userId);
 
       setProfileData({
         user: userData,
@@ -124,7 +122,10 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
       case 'century_club':
         return 'Century Club';
       default:
-        return badgeType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        return badgeType
+          .split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
     }
   };
 
@@ -227,4 +228,4 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
       </div>
     </div>
   );
-} 
+}

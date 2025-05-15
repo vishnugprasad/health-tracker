@@ -1,8 +1,5 @@
 import { NextResponse } from 'next/server';
-import { WebClient } from '@slack/web-api';
 import { supabase } from '@/lib/supabase/client';
-
-const slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
 
 export async function POST(req: Request) {
   try {
@@ -19,7 +16,7 @@ export async function POST(req: Request) {
 
       // Check if message has files (images)
       if (event.files && event.files.length > 0) {
-        const images = event.files.filter((file: any) => file.mimetype.startsWith('image/'));
+        const images = event.files.filter((file: { mimetype: string }) => file.mimetype.startsWith('image/'));
         
         if (images.length > 0) {
           // Get user details
